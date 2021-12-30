@@ -12,7 +12,7 @@
 #include <thread>
 #include <future>
 #include <chrono>
-#include "MessageQueue.h"
+//#include "MessageQueue.h"
 
 /*
 This class is adapted from the code in https://docs.opencv.org/3.4/db/d28/tutorial_cascade_classifier.html
@@ -20,27 +20,15 @@ This class is adapted from the code in https://docs.opencv.org/3.4/db/d28/tutori
 class Detector
 {
 public:
-    Detector(cv::String&, int);
+    Detector();
     ~Detector();
-    void Run();
-    
+    void LoadModel(cv::String&);
+    std::vector<cv::Rect> Detect(const cv::Mat&);
+    // Preprocess()    
 
 private:
-    void LoadModel(cv::String&);
-    void Capture();
-    std::vector<cv::Rect> Detect(const cv::Mat&);
-    void Display();
-
-    int _cam_id;
-    bool _is_running;
-    cv::VideoCapture _capture;
     cv::CascadeClassifier _face_cascade;
-    MessageQueue< std::pair<cv::Mat, std::vector<cv::Rect>> > _display_msg_queue;
-    MessageQueue< std::pair<cv::Mat, cv::Mat> > _frame_buffer;
-    std::vector<std::future<void>> _futures;
-    std::mutex _mtx;
 
-    const int MAX_SIZE_FRAME_BUFFER = 2;
 };
 
 #endif
