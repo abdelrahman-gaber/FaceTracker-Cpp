@@ -41,8 +41,12 @@ void Detector::Run() {
         cv::Mat frame_original = std::move(imgs_pair.first);
         cv::Mat frame_gray = std::move(imgs_pair.second);
 
+        auto detection_time_start = std::chrono::steady_clock::now();
         // Detect faces
         std::vector<cv::Rect> faces = Detect(frame_gray);
+        auto detection_time_end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_seconds = detection_time_end - detection_time_start;
+        std::cout << "Detection FPS: " << 1.0/elapsed_seconds.count() << "\n";
 
         // use original colored frame for display
         std::pair<cv::Mat, std::vector<cv::Rect>> img_rect_pair = std::make_pair(std::move(frame_original), std::move(faces));  
@@ -63,6 +67,11 @@ void Detector::Capture() {
         std::cout << "Error opening video capture \n";
         return;
     }
+
+    //_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    _capture.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    _capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    _capture.set(cv::CAP_PROP_FPS, 30);
 
     // set max frame size to 2 so you get the latest frames from the camera whatever the speed of the detector
     _frame_buffer.SetMaxQueueSize(MAX_SIZE_FRAME_BUFFER);
@@ -93,7 +102,7 @@ void Detector::Capture() {
 
 // Detect faces and return vector of bounding boxes
 std::vector<cv::Rect> Detector::Detect(const cv::Mat& frame) {
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(10));
     std::vector<cv::Rect> faces;
     _face_cascade.detectMultiScale(frame, faces);
     return faces;
@@ -104,10 +113,11 @@ void Detector::Display(){
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Display worker thread #" << std::this_thread::get_id() << "\n";
     uLock.unlock();
+    auto display_time_start = std::chrono::steady_clock::now();
 
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
 
-    cv::namedWindow("Concurrent Face Detector");
+    cv::namedWindow("Face Tracker");
     while(true) {
         std::pair<cv::Mat, std::vector<cv::Rect>> message = _display_msg_queue.Receive();
         cv::Mat frame = std::move(message.first); 
@@ -119,17 +129,24 @@ void Detector::Display(){
             cv::rectangle(frame, bboxes[i], cv::Scalar(0, 255, 0), 4);
         }
 
+        auto display_time_end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_seconds = display_time_end - display_time_start;
+        cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/elapsed_seconds.count());
+        cv::putText(frame, dispaly_fps_string, cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255,255,255), 2, false);
+        display_time_start = std::chrono::steady_clock::now();
+
         //video.write(frame);
         // Display the detection
-        cv::imshow("Concurrent Face Detector", frame);
+        cv::imshow("Face Tracker", frame);
 
         // Stop when Esc key is pressed
         if(cv::waitKey(1) == 27){
             uLock.lock();
             _is_running = false;
             uLock.unlock();
-            //video.release();
+            //video.release()
             break;
         }
+        
     }
 }
