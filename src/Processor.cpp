@@ -11,9 +11,10 @@ Processor::~Processor() {
     cv::destroyAllWindows();
 }
 
-void Processor::UpdateParams(cv::String model_pth, int camera_id){
+void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn){
     _model_path = model_pth;
     _cam_id = camera_id;
+    _use_dnn = use_dnn;
 }
 
 void Processor::Run() {
@@ -23,7 +24,11 @@ void Processor::Run() {
     std::cout << "Detection thread #" << std::this_thread::get_id() << "\n";
     uLock.unlock();
 
-    _detector.LoadModel(_model_path);
+    //TODO: if(_use_dnn) {}
+    DetectorDNN det;
+    _detector = &det;
+
+    _detector->LoadModel(_model_path);
 
     // Start the straem capture thread 
     _futures.emplace_back(std::async(std::launch::async, &Processor::Capture, this));
@@ -45,7 +50,7 @@ void Processor::Run() {
         auto detection_time_start = std::chrono::steady_clock::now();
         // Detect faces
         //std::vector<cv::Rect> faces = _detector.Detect(frame_gray);
-        cv::Mat faces = _detector.Detect(frame_original);
+        cv::Mat faces = _detector->Detect(frame_original);
         auto detection_time_end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = detection_time_end - detection_time_start;
         std::cout << "Detection FPS: " << 1.0/elapsed_seconds.count() << "\n";
@@ -117,7 +122,7 @@ void Processor::Display() {
         cv::Mat frame = std::move(message.first); 
         cv::Mat faces = std::move(message.second);
 
-        _detector.Visualize(frame, faces, 0);
+        _detector->Visualize(frame, faces, 0);
 
         // Draw the bounding boxes on the image frame
         // Note that this fucntion will modify the frame passed 

@@ -11,6 +11,7 @@
 #include <iostream>
 #include <thread>
 #include <future>
+#include <memory>
 #include <chrono>
 #include "MessageQueue.h"
 #include "Detector.h"
@@ -21,7 +22,7 @@ class Processor
 public:
     Processor();
     ~Processor();
-    void UpdateParams(cv::String model_pth, int camera_id);
+    void SetParams(cv::String, int, bool);
     void Run();
     
 
@@ -32,9 +33,11 @@ private:
     int _cam_id;
     bool _is_running;
     //Detector _detector;
-    DetectorDNN _detector;
+    //DetectorDNN _detector;
+    Detector *_detector;
     cv::VideoCapture _capture;
     cv::String _model_path;
+    bool _use_dnn;
     //MessageQueue< std::pair<cv::Mat, std::vector<cv::Rect>> > _display_msg_queue;
     MessageQueue< std::pair<cv::Mat, cv::Mat> > _display_msg_queue;
     MessageQueue< std::pair<cv::Mat, cv::Mat> > _frame_buffer;

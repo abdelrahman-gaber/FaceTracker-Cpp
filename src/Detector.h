@@ -12,23 +12,19 @@
 #include <thread>
 #include <future>
 #include <chrono>
-//#include "MessageQueue.h"
 
 /*
-This class is adapted from the code in https://docs.opencv.org/3.4/db/d28/tutorial_cascade_classifier.html
+Virtual class for object detectors
 */
 class Detector
 {
 public:
-    Detector();
-    ~Detector();
-    void LoadModel(cv::String&);
-    std::vector<cv::Rect> Detect(const cv::Mat&);
-    // Preprocess()    
-
-private:
-    cv::CascadeClassifier _face_cascade;
-
+    virtual void LoadModel(cv::String&) {};
+    virtual cv::Mat Detect(const cv::Mat&) {};
+    virtual cv::Mat PreProcess(const cv::Mat&) {};
+    virtual void PostProcess(cv::Mat&) {};
+    virtual void Visualize(cv::Mat& img, cv::Mat& faces, double fps) {};   
+     
 };
 
 #endif

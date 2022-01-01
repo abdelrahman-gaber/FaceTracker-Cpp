@@ -13,12 +13,13 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include "Detector.h"
 
 /*
 This class is adapted from the code in https://docs.opencv.org/4.5.5/d0/dd4/tutorial_dnn_face.html
 You need to use OpenCV >= 4.5.3 and build it with DNN support
 */
-class DetectorDNN
+class DetectorDNN : public Detector
 {
 public:
     DetectorDNN();
