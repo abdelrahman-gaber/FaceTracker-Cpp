@@ -1,18 +1,9 @@
 #ifndef DETECTORDNN_H
 #define DETECTORDNN_H
 
-#include "opencv2/objdetect.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/videoio.hpp"
-#include "opencv2/dnn.hpp"
-#include <vector>
-#include <utility>
-#include <algorithm>
 #include <iostream>
-#include <thread>
-#include <future>
-#include <chrono>
+#include "opencv2/objdetect.hpp"
+#include "opencv2/dnn.hpp"
 #include "Detector.h"
 
 /*
@@ -24,16 +15,17 @@ class DetectorDNN : public Detector
 public:
     DetectorDNN();
     ~DetectorDNN();
-    void LoadModel(cv::String&);
-    cv::Mat Detect(const cv::Mat&);
-    cv::Mat PreProcess(const cv::Mat&);
-    void PostProcess(cv::Mat&);
-    void Visualize(cv::Mat& img, cv::Mat& faces, double fps);
+    void LoadModel(cv::String&) override;
+    cv::Mat Detect(const cv::Mat&) override;
+    cv::Mat PreProcess(const cv::Mat&) override;
+    void Visualize(cv::Mat& img, cv::Mat& faces, double fps) override;
 
 private:
+    void PostProcess(cv::Mat&);
+
     float score_threshold = 0.8;
-    float nms_threshold = 0.3;
-    int top_k = 5000;
+    float nms_threshold = 0.5;
+    int top_k = 500;
     cv::Size _model_input_size = cv::Size(320, 240);
     std::pair<float, float> _resize_factor;
 

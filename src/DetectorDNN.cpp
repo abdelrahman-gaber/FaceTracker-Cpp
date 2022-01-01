@@ -6,11 +6,11 @@ DetectorDNN::~DetectorDNN() {}
 void DetectorDNN::LoadModel(cv::String& model_pth) {
     // backend_id -> 0: default, 1: Halide, 2: Intel's Inference Engine, 3: OpenCV, 4: VKCOM, 5: CUDA
     // target_id -> 0: CPU, 1: OpenCL, 2: OpenCL FP16, 3: Myriad, 4: Vulkan, 5: FPGA, 6: CUDA, 7: CUDA FP16, 8: HDDL
-    // TODO: pass these values from as a config 
+    // TODO: pass these values from a config file
     int backend_id = 0;  //5
     int target_id = 0;   //6
     fd_model = cv::FaceDetectorYN::create(model_pth, "", _model_input_size, score_threshold, nms_threshold, top_k, backend_id, target_id);
-    //fd_model->setInputSize(input_size);
+    //fd_model->setInputSize(_model_input_size);
 }
 
 cv::Mat DetectorDNN::PreProcess(const cv::Mat& frame) {
@@ -36,8 +36,7 @@ void DetectorDNN::PostProcess(cv::Mat& faces) {
 // Detect faces and return cv::Mat of bounding boxes and landmarks
 cv::Mat DetectorDNN::Detect(const cv::Mat& frame) {
     cv::Mat faces;
-    cv::Mat preprocessed_frame = PreProcess(frame);
-    fd_model->detect(preprocessed_frame, faces);
+    fd_model->detect(frame, faces);
     PostProcess(faces);
     return faces;
 }

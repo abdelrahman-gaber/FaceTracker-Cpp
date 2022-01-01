@@ -1,28 +1,24 @@
 #ifndef DETECTORCASCADE_H
 #define DETECTORCASCADE_H
 
-#include "opencv2/objdetect.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/videoio.hpp"
-#include <vector>
-#include <utility>
-#include <algorithm>
 #include <iostream>
-#include <thread>
-#include <future>
-#include <chrono>
+#include <vector>
+#include "opencv2/objdetect.hpp"
+#include "opencv2/imgproc.hpp"
+#include "Detector.h"
 
 /*
 This class is adapted from the code in https://docs.opencv.org/3.4/db/d28/tutorial_cascade_classifier.html
 */
-class DetectorCascade
+class DetectorCascade : public Detector
 {
 public:
     DetectorCascade();
     ~DetectorCascade();
-    void LoadModel(cv::String&);
-    std::vector<cv::Rect> Detect(const cv::Mat&);
+    void LoadModel(cv::String&) override;
+    cv::Mat Detect(const cv::Mat&) override;
+    cv::Mat PreProcess(const cv::Mat&) override;
+    void Visualize(cv::Mat& img, cv::Mat& faces, double fps) override;
 
 private:
     cv::CascadeClassifier _face_cascade;

@@ -9,6 +9,7 @@ Processor::~Processor() {
     });
     _capture.release();
     cv::destroyAllWindows();
+    delete _detector;
 }
 
 void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn){
@@ -24,9 +25,12 @@ void Processor::Run() {
     std::cout << "Detection thread #" << std::this_thread::get_id() << "\n";
     uLock.unlock();
 
-    //TODO: if(_use_dnn) {}
-    DetectorDNN det;
-    _detector = &det;
+    if(_use_dnn) {
+        _detector = new DetectorDNN;
+    }
+    else {
+        _detector = new DetectorCascade;
+    }
 
     _detector->LoadModel(_model_path);
 
@@ -39,31 +43,29 @@ void Processor::Run() {
         uLock.lock();
         if( !_is_running ) {
             uLock.unlock();
-            break;}
+            break;
+        }
         uLock.unlock();
 
         // Get the next frame from _frame_buffer queue
         std::pair<cv::Mat, cv::Mat> imgs_pair = _frame_buffer.Receive();
         cv::Mat frame_original = std::move(imgs_pair.first);
-        cv::Mat frame_gray = std::move(imgs_pair.second);
+        cv::Mat preprocessed_frame = std::move(imgs_pair.second);
 
         auto detection_time_start = std::chrono::steady_clock::now();
-        // Detect faces
-        //std::vector<cv::Rect> faces = _detector.Detect(frame_gray);
-        cv::Mat faces = _detector->Detect(frame_original);
+        cv::Mat faces = _detector->Detect(preprocessed_frame); 
         auto detection_time_end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = detection_time_end - detection_time_start;
         std::cout << "Detection FPS: " << 1.0/elapsed_seconds.count() << "\n";
 
-        // use original colored frame for display
-        //std::pair<cv::Mat, std::vector<cv::Rect>> img_rect_pair = std::make_pair(std::move(frame_original), std::move(faces));
+        // use the original frame for display
         std::pair<cv::Mat, cv::Mat> img_rect_pair = std::make_pair(std::move(frame_original), std::move(faces));  
         _display_msg_queue.Send( std::move(img_rect_pair) );
         //std::cout << "display_msg_queue size:" << _display_msg_queue.GetQueueSize() << "\n";
     }
 }
 
-// This function capture new frames from the camera and apply pre-processing needed for the Processor
+// This function capture new frames from the camera and apply pre-processing
 void Processor::Capture() {
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Stream capture worker thread #" << std::this_thread::get_id() << "\n";
@@ -96,13 +98,11 @@ void Processor::Capture() {
             break;
         }
 
-        // Pre-processing needed for the face Processor
-        cv::Mat frame_gray;
-        cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
-        equalizeHist(frame_gray, frame_gray);
+        // preprocessing for the input frames
+        cv::Mat preprocessed_frame = _detector->PreProcess(frame);
 
         // push the frames to _frame_buffer
-        std::pair<cv::Mat, cv::Mat> imgs_pair = std::make_pair(std::move(frame), std::move(frame_gray));  
+        std::pair<cv::Mat, cv::Mat> imgs_pair = std::make_pair(std::move(frame), std::move(preprocessed_frame));  
         _frame_buffer.Send(std::move(imgs_pair));
         //std::cout << "frame_buffer size:" << _frame_buffer.GetQueueSize() << "\n";
     }
@@ -115,7 +115,6 @@ void Processor::Display() {
     auto display_time_start = std::chrono::steady_clock::now();
 
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
-
     cv::namedWindow("Face Tracker");
     while(true) {
         std::pair<cv::Mat, cv::Mat> message = _display_msg_queue.Receive();
@@ -124,12 +123,6 @@ void Processor::Display() {
 
         _detector->Visualize(frame, faces, 0);
 
-        // Draw the bounding boxes on the image frame
-        // Note that this fucntion will modify the frame passed 
-        // for (size_t i = 0; i < bboxes.size(); i++) {
-        //     cv::rectangle(frame, bboxes[i], cv::Scalar(0, 255, 0), 4);
-        // }
-
         auto display_time_end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = display_time_end - display_time_start;
         cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/elapsed_seconds.count());
@@ -137,7 +130,6 @@ void Processor::Display() {
         display_time_start = std::chrono::steady_clock::now();
 
         //video.write(frame);
-        // Display the detection
         cv::imshow("Face Tracker", frame);
 
         // Stop when Esc key is pressed
@@ -148,6 +140,5 @@ void Processor::Display() {
             //video.release()
             break;
         }
-        
     }
 }
