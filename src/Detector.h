@@ -14,6 +14,7 @@ Virtual class for object detectors
 class Detector
 {
 public:
+    virtual ~Detector() {};
     virtual void LoadModel(cv::String&) = 0;
     virtual cv::Mat Detect(const cv::Mat&) = 0;
     virtual cv::Mat PreProcess(const cv::Mat&) = 0;

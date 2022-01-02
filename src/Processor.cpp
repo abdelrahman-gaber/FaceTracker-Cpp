@@ -9,7 +9,7 @@ Processor::~Processor() {
     });
     _capture.release();
     cv::destroyAllWindows();
-    delete _detector;
+    //delete _detector;
 }
 
 void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn){
@@ -26,10 +26,12 @@ void Processor::Run() {
     uLock.unlock();
 
     if(_use_dnn) {
-        _detector = new DetectorDNN;
+        //_detector = new DetectorDNN;
+        _detector = std::make_shared<DetectorDNN>();
     }
     else {
-        _detector = new DetectorCascade;
+        //_detector = new DetectorCascade;
+        _detector = std::make_shared<DetectorCascade>();
     }
 
     _detector->LoadModel(_model_path);

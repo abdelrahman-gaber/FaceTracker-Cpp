@@ -43,9 +43,10 @@ private:
     int _cam_id;
     bool _use_dnn;
     bool _is_running;
-    Detector *_detector;
-    cv::VideoCapture _capture;
     cv::String _model_path;
+    
+    cv::VideoCapture _capture;
+    std::shared_ptr<Detector> _detector;
     MessageQueue< MessageData > _frame_buffer;
     MessageQueue< MessageData > _display_msg_queue;
     std::vector<std::future<void>> _futures;
