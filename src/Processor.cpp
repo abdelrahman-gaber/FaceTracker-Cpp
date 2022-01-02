@@ -48,9 +48,8 @@ void Processor::Run() {
         uLock.unlock();
 
         // Get the next frame from _frame_buffer queue
-        std::pair<cv::Mat, cv::Mat> imgs_pair = _frame_buffer.Receive();
-        cv::Mat frame_original = std::move(imgs_pair.first);
-        cv::Mat preprocessed_frame = std::move(imgs_pair.second);
+        MessageData data_msg = _frame_buffer.Receive();
+        cv::Mat preprocessed_frame = std::move(data_msg.preprocessed_img);
 
         auto detection_time_start = std::chrono::steady_clock::now();
         cv::Mat faces = _detector->Detect(preprocessed_frame); 
@@ -58,9 +57,11 @@ void Processor::Run() {
         std::chrono::duration<double> elapsed_seconds = detection_time_end - detection_time_start;
         std::cout << "Detection FPS: " << 1.0/elapsed_seconds.count() << "\n";
 
+        data_msg.faces = std::move(faces);
+        data_msg.detection_time = elapsed_seconds.count();
+
         // use the original frame for display
-        std::pair<cv::Mat, cv::Mat> img_rect_pair = std::make_pair(std::move(frame_original), std::move(faces));  
-        _display_msg_queue.Send( std::move(img_rect_pair) );
+        _display_msg_queue.Send( std::move(data_msg) );
         //std::cout << "display_msg_queue size:" << _display_msg_queue.GetQueueSize() << "\n";
     }
 }
@@ -102,8 +103,10 @@ void Processor::Capture() {
         cv::Mat preprocessed_frame = _detector->PreProcess(frame);
 
         // push the frames to _frame_buffer
-        std::pair<cv::Mat, cv::Mat> imgs_pair = std::make_pair(std::move(frame), std::move(preprocessed_frame));  
-        _frame_buffer.Send(std::move(imgs_pair));
+        MessageData msg;
+        msg.img = std::move(frame);
+        msg.preprocessed_img = std::move(preprocessed_frame);
+        _frame_buffer.Send(std::move(msg));
         //std::cout << "frame_buffer size:" << _frame_buffer.GetQueueSize() << "\n";
     }
 }
@@ -117,11 +120,14 @@ void Processor::Display() {
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
     cv::namedWindow("Face Tracker");
     while(true) {
-        std::pair<cv::Mat, cv::Mat> message = _display_msg_queue.Receive();
-        cv::Mat frame = std::move(message.first); 
-        cv::Mat faces = std::move(message.second);
 
-        _detector->Visualize(frame, faces, 0);
+        MessageData message = _display_msg_queue.Receive();
+        cv::Mat frame = std::move(message.img); 
+        cv::Mat faces = std::move(message.faces);
+        double det_time = message.detection_time;
+
+        // Note: this function will modify the original image
+        _detector->Visualize(frame, faces, det_time);
 
         auto display_time_end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = display_time_end - display_time_start;

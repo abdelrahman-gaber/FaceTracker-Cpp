@@ -19,6 +19,15 @@
 #include "DetectorCascade.h"
 
 
+struct MessageData {
+    cv::Mat img;
+    cv::Mat preprocessed_img;
+    cv::Mat faces;
+
+    double preprocess_time;
+    double detection_time;
+};
+
 class Processor
 {
 public:
@@ -37,8 +46,8 @@ private:
     Detector *_detector;
     cv::VideoCapture _capture;
     cv::String _model_path;
-    MessageQueue< std::pair<cv::Mat, cv::Mat> > _display_msg_queue;
-    MessageQueue< std::pair<cv::Mat, cv::Mat> > _frame_buffer;
+    MessageQueue< MessageData > _frame_buffer;
+    MessageQueue< MessageData > _display_msg_queue;
     std::vector<std::future<void>> _futures;
     std::mutex _mtx;
 
