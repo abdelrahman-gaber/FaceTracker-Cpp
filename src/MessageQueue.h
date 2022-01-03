@@ -1,6 +1,7 @@
 #ifndef MESSAGE_QUEUE_H
 #define MESSAGE_QUEUE_H
 
+#include <chrono>
 #include <mutex>
 #include <deque>
 #include <condition_variable>
@@ -25,7 +26,13 @@ public:
 
     T Receive() {
         std::unique_lock<std::mutex> uLock(_mutex);
-        _condition.wait(uLock, [this] { return !_queue.empty(); });
+        //_condition.wait(uLock, [this] { return !_queue.empty(); });
+        bool waiting = _condition.wait_for(uLock, std::chrono::seconds(_max_wait_seconds), [this] { return !_queue.empty(); });
+        if(!waiting) {
+            std::cout << "MessageQueue waiting time out! - max: " << _max_wait_seconds << " second \n";
+            T msg;
+            return msg;
+        }
 
         // return one element from the front of the queue
         T msg = std::move(_queue.front());
@@ -37,6 +44,10 @@ public:
         _max_size = max_size;
     }
 
+    void SetMaxWaitingTimeInSeconds(int max_seconds) {
+        _max_wait_seconds = max_seconds;
+    }
+
     int GetQueueSize() {
         std::lock_guard<std::mutex> uLock(_mutex);
         int size = _queue.size();
@@ -45,6 +56,7 @@ public:
 
 private:
     int _max_size=100;
+    int _max_wait_seconds = 5;
     std::deque<T> _queue;
     std::condition_variable _condition;
     std::mutex _mutex;

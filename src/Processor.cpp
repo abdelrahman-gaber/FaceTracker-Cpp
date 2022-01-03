@@ -6,10 +6,10 @@ Processor::Processor(){}
 Processor::~Processor() {
     std::for_each(_futures.begin(), _futures.end(), [](std::future<void> &ftr) {
         ftr.wait();
-    });
+    });    
+    cv::destroyAllWindows();    
     _capture.release();
-    cv::destroyAllWindows();
-    //delete _detector;
+    std::cout<<"FaceTracker closed!\n";
 }
 
 void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn){
@@ -26,21 +26,20 @@ void Processor::Run() {
     uLock.unlock();
 
     if(_use_dnn) {
-        //_detector = new DetectorDNN;
         _detector = std::make_shared<DetectorDNN>();
     }
     else {
-        //_detector = new DetectorCascade;
         _detector = std::make_shared<DetectorCascade>();
     }
 
     _detector->LoadModel(_model_path);
 
-    // Start the straem capture thread 
+    // Start the stream capture thread 
     _futures.emplace_back(std::async(std::launch::async, &Processor::Capture, this));
     // Start the display thread
     _futures.emplace_back(std::async(std::launch::async, &Processor::Display, this));
 
+    Timer timer;
     while(true) {
         uLock.lock();
         if( !_is_running ) {
@@ -51,24 +50,21 @@ void Processor::Run() {
 
         // Get the next frame from _frame_buffer queue
         MessageData data_msg = _frame_buffer.Receive();
+        if(!data_msg.capture_success) {continue;}
+        
         cv::Mat preprocessed_frame = std::move(data_msg.preprocessed_img);
 
-        auto detection_time_start = std::chrono::steady_clock::now();
+        timer.Tic();
         cv::Mat faces = _detector->Detect(preprocessed_frame); 
-        auto detection_time_end = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed_seconds = detection_time_end - detection_time_start;
-        std::cout << "Detection FPS: " << 1.0/elapsed_seconds.count() << "\n";
 
+        data_msg.detection_time = timer.Toc();
         data_msg.faces = std::move(faces);
-        data_msg.detection_time = elapsed_seconds.count();
-
-        // use the original frame for display
         _display_msg_queue.Send( std::move(data_msg) );
         //std::cout << "display_msg_queue size:" << _display_msg_queue.GetQueueSize() << "\n";
     }
 }
 
-// This function capture new frames from the camera and apply pre-processing
+// This function captures new frames from the camera and apply pre-processing
 void Processor::Capture() {
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Stream capture worker thread #" << std::this_thread::get_id() << "\n";
@@ -78,6 +74,9 @@ void Processor::Capture() {
     _capture.open(_cam_id);
     if (! _capture.isOpened()) {
         std::cout << "Error opening video capture \n";
+        uLock.lock();
+        _is_running = false;
+        uLock.unlock();
         return;
     }
 
@@ -88,27 +87,38 @@ void Processor::Capture() {
 
     // set max frame size to 2 so you get the latest frames from the camera whatever the speed of the Processor
     _frame_buffer.SetMaxQueueSize(MAX_SIZE_FRAME_BUFFER);
+    Timer timer;
  
     while(true) {
         uLock.lock();
-        if( !_is_running ) {break;}
+        if( !_is_running ) {
+            uLock.unlock();
+            break;
+        }
         uLock.unlock();
 
         cv::Mat frame;
         _capture.read(frame);
         if(frame.empty()) {
             std::cout << "No captured frame -- Break! \n";
+            uLock.lock();
+            _is_running = false;
+            uLock.unlock();
             break;
         }
 
+        timer.Tic();
         // preprocessing for the input frames
         cv::Mat preprocessed_frame = _detector->PreProcess(frame);
+        float preprocess_time = timer.Toc();
+        //std::cout << "Preprocess time: " << preprocess_time*1000 << "ms \n";
 
-        // push the frames to _frame_buffer
         MessageData msg;
+        msg.capture_success = true;
         msg.img = std::move(frame);
         msg.preprocessed_img = std::move(preprocessed_frame);
-        _frame_buffer.Send(std::move(msg));
+        msg.preprocess_time = preprocess_time;
+        _frame_buffer.Send(std::move(msg));  // push the frames to _frame_buffer
         //std::cout << "frame_buffer size:" << _frame_buffer.GetQueueSize() << "\n";
     }
 }
@@ -117,13 +127,21 @@ void Processor::Display() {
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Display worker thread #" << std::this_thread::get_id() << "\n";
     uLock.unlock();
-    auto display_time_start = std::chrono::steady_clock::now();
 
+    Timer timer;
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
-    cv::namedWindow("Face Tracker");
+    cv::namedWindow("FaceTracker");
     while(true) {
+        uLock.lock();
+        if( !_is_running ) {
+            uLock.unlock();
+            break;
+        }
+        uLock.unlock();
 
         MessageData message = _display_msg_queue.Receive();
+        if(!message.capture_success) {continue;}
+
         cv::Mat frame = std::move(message.img); 
         cv::Mat faces = std::move(message.faces);
         double det_time = message.detection_time;
@@ -131,14 +149,13 @@ void Processor::Display() {
         // Note: this function will modify the original image
         _detector->Visualize(frame, faces, det_time);
 
-        auto display_time_end = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed_seconds = display_time_end - display_time_start;
-        cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/elapsed_seconds.count());
+        float elapsed_seconds = timer.Toc();
+        cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/elapsed_seconds);
         cv::putText(frame, dispaly_fps_string, cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255,255,255), 2, false);
-        display_time_start = std::chrono::steady_clock::now();
+        timer.Tic();
 
         //video.write(frame);
-        cv::imshow("Face Tracker", frame);
+        cv::imshow("FaceTracker", frame);
 
         // Stop when Esc key is pressed
         if(cv::waitKey(1) == 27){

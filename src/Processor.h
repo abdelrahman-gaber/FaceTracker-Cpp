@@ -17,7 +17,7 @@
 #include "Detector.h"
 #include "DetectorDNN.h"
 #include "DetectorCascade.h"
-
+#include "Utils.h"
 
 struct MessageData {
     cv::Mat img;
@@ -26,6 +26,8 @@ struct MessageData {
 
     double preprocess_time;
     double detection_time;
+
+    bool capture_success = false;
 };
 
 class Processor
