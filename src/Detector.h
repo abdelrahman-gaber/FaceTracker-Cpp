@@ -19,7 +19,7 @@ public:
     virtual cv::Mat Detect(const cv::Mat&) = 0;
     virtual cv::Mat PreProcess(const cv::Mat&) = 0;
 
-    virtual void Visualize(cv::Mat& img, cv::Mat& faces, double fps) {};   
+    virtual void Visualize(cv::Mat&, cv::Mat&, float , float) {};   
      
 };
 

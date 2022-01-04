@@ -41,19 +41,11 @@ cv::Mat DetectorDNN::Detect(const cv::Mat& frame) {
     return faces;
 }
 
-void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, double fps)
+void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, float display_latency, float detection_latency)
 {
-    //std::string fpsString = cv::format("FPS : %.2f", (float)fps);
-    //cout << "FPS: " << fpsString << endl;
     int thickness = 2;
     for (int i = 0; i < faces.rows; i++)
     {
-        // Print results
-        std::cout << "Face " << i
-             << ", top-left coordinates: (" << faces.at<float>(i, 0) << ", " << faces.at<float>(i, 1) << "), "
-             << "box width: " << faces.at<float>(i, 2)  << ", box height: " << faces.at<float>(i, 3) << ", "
-             << "score: " << cv::format("%.2f", faces.at<float>(i, 14))
-             << std::endl;
         // Draw bounding box
         auto bbox = cv::Rect2i(int(faces.at<float>(i, 0)), int(faces.at<float>(i, 1)), int(faces.at<float>(i, 2)), int(faces.at<float>(i, 3)));
         cv::rectangle(img, bbox, cv::Scalar(0, 255, 0), thickness);
@@ -64,5 +56,8 @@ void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, double fps)
         cv::circle(img, cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i, 11))), 2, cv::Scalar(255, 0, 255), thickness);
         cv::circle(img, cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))), 2, cv::Scalar(0, 255, 255), thickness);
     }
-    //putText(img, fpsString, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 0), 2);
+    cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/display_latency);
+    cv::String detection_fps_string = cv::format("Detection FPS: %3.2f", 1.0/detection_latency);
+    cv::putText(img, dispaly_fps_string, cv::Point(15,35), cv::FONT_HERSHEY_SIMPLEX, 0.9, cv::Scalar(0,0,0), 2, false);
+    cv::putText(img, detection_fps_string, cv::Point(15,75), cv::FONT_HERSHEY_SIMPLEX, 0.9, cv::Scalar(0,0,0), 2, false);
 }

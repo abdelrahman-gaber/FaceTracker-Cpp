@@ -9,6 +9,7 @@
 #include <future>
 #include <memory>
 #include <chrono>
+#include <iomanip>
 #include "opencv2/objdetect.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
@@ -24,8 +25,10 @@ struct MessageData {
     cv::Mat preprocessed_img;
     cv::Mat faces;
 
-    double preprocess_time;
-    double detection_time;
+    float capture_time;
+    float preprocess_time;
+    float detection_time;
+    float display_time;    // the time taken for the whole system to run
 
     bool capture_success = false;
 };

@@ -88,6 +88,8 @@ void Processor::Capture() {
     // set max frame size to 2 so you get the latest frames from the camera whatever the speed of the Processor
     _frame_buffer.SetMaxQueueSize(MAX_SIZE_FRAME_BUFFER);
     Timer timer;
+    float capture_time;
+    float preprocess_time;
  
     while(true) {
         uLock.lock();
@@ -98,7 +100,9 @@ void Processor::Capture() {
         uLock.unlock();
 
         cv::Mat frame;
+        timer.Tic();
         _capture.read(frame);
+        capture_time = timer.Toc();
         if(frame.empty()) {
             std::cout << "No captured frame -- Break! \n";
             uLock.lock();
@@ -110,13 +114,14 @@ void Processor::Capture() {
         timer.Tic();
         // preprocessing for the input frames
         cv::Mat preprocessed_frame = _detector->PreProcess(frame);
-        float preprocess_time = timer.Toc();
+        preprocess_time = timer.Toc();
         //std::cout << "Preprocess time: " << preprocess_time*1000 << "ms \n";
 
         MessageData msg;
         msg.capture_success = true;
         msg.img = std::move(frame);
         msg.preprocessed_img = std::move(preprocessed_frame);
+        msg.capture_time = capture_time;
         msg.preprocess_time = preprocess_time;
         _frame_buffer.Send(std::move(msg));  // push the frames to _frame_buffer
         //std::cout << "frame_buffer size:" << _frame_buffer.GetQueueSize() << "\n";
@@ -129,6 +134,10 @@ void Processor::Display() {
     uLock.unlock();
 
     Timer timer;
+    float detection_time;
+    float display_time;
+    std::cout << std::setprecision(2) << std::fixed;
+
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
     cv::namedWindow("FaceTracker");
     while(true) {
@@ -144,15 +153,16 @@ void Processor::Display() {
 
         cv::Mat frame = std::move(message.img); 
         cv::Mat faces = std::move(message.faces);
-        double det_time = message.detection_time;
+        detection_time = message.detection_time + message.preprocess_time;
+        display_time = timer.Toc();
+        timer.Tic();
+
+        std::cout << "Camera capture: " << message.capture_time*1000 
+                  << " ms .. Preprocessing: " << message.preprocess_time*1000 << " ms .. Detection: " 
+                  << message.detection_time*1000 << " ms .. Display: " << display_time*1000 << " ms \n";
 
         // Note: this function will modify the original image
-        _detector->Visualize(frame, faces, det_time);
-
-        float elapsed_seconds = timer.Toc();
-        cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/elapsed_seconds);
-        cv::putText(frame, dispaly_fps_string, cv::Point(20,40), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255,255,255), 2, false);
-        timer.Tic();
+        _detector->Visualize(frame, faces, display_time, detection_time);
 
         //video.write(frame);
         cv::imshow("FaceTracker", frame);
