@@ -12,11 +12,14 @@ Processor::~Processor() {
     std::cout<<"FaceTracker closed!\n";
 }
 
-void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn){
+
+void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn, bool display){
     _model_path = model_pth;
     _cam_id = camera_id;
     _use_dnn = use_dnn;
+    _display = display;
 }
+
 
 void Processor::Run() {
 
@@ -41,6 +44,7 @@ void Processor::Run() {
 
     Timer timer;
     while(true) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         uLock.lock();
         if( !_is_running ) {
             uLock.unlock();
@@ -64,8 +68,10 @@ void Processor::Run() {
     }
 }
 
+
 // This function captures new frames from the camera and apply pre-processing
 void Processor::Capture() {
+
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Stream capture worker thread #" << std::this_thread::get_id() << "\n";
     uLock.unlock();
@@ -87,11 +93,13 @@ void Processor::Capture() {
 
     // set max frame size to 2 so you get the latest frames from the camera whatever the speed of the Processor
     _frame_buffer.SetMaxQueueSize(MAX_SIZE_FRAME_BUFFER);
+    _frame_number = 0;
     Timer timer;
     float capture_time;
     float preprocess_time;
  
     while(true) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         uLock.lock();
         if( !_is_running ) {
             uLock.unlock();
@@ -111,14 +119,15 @@ void Processor::Capture() {
             break;
         }
 
+        _frame_number += 1;
         timer.Tic();
         // preprocessing for the input frames
         cv::Mat preprocessed_frame = _detector->PreProcess(frame);
         preprocess_time = timer.Toc();
-        //std::cout << "Preprocess time: " << preprocess_time*1000 << "ms \n";
 
         MessageData msg;
         msg.capture_success = true;
+        msg.frame_number = _frame_number;
         msg.img = std::move(frame);
         msg.preprocessed_img = std::move(preprocessed_frame);
         msg.capture_time = capture_time;
@@ -128,6 +137,7 @@ void Processor::Capture() {
     }
 }
 
+
 void Processor::Display() {
     std::unique_lock<std::mutex> uLock(_mtx);
     std::cout << "Display worker thread #" << std::this_thread::get_id() << "\n";
@@ -136,11 +146,13 @@ void Processor::Display() {
     Timer timer;
     float detection_time;
     float display_time;
+    float average_time;
     std::cout << std::setprecision(2) << std::fixed;
 
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
-    cv::namedWindow("FaceTracker");
+    if(_display) {cv::namedWindow("FaceTracker");}
     while(true) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         uLock.lock();
         if( !_is_running ) {
             uLock.unlock();
@@ -156,24 +168,31 @@ void Processor::Display() {
         detection_time = message.detection_time + message.preprocess_time;
         display_time = timer.Toc();
         timer.Tic();
+ 
+        if(message.frame_number<2) {average_time = 1;} // first frame takes longer than others
+        else if(message.frame_number==2) {average_time = display_time;}
+        else {average_time = (average_time+display_time)/2.0;}
 
-        std::cout << "Camera capture: " << message.capture_time*1000 
+        std::cout << "Frame " << message.frame_number << " : Camera capture: " << message.capture_time*1000 
                   << " ms .. Preprocessing: " << message.preprocess_time*1000 << " ms .. Detection: " 
-                  << message.detection_time*1000 << " ms .. Display: " << display_time*1000 << " ms \n";
+                  << message.detection_time*1000 << " ms .. Display: " << display_time*1000 
+                  << " ms ... Avg display time: " << average_time*1000 << " ms \n";
 
         // Note: this function will modify the original image
-        _detector->Visualize(frame, faces, display_time, detection_time);
+        _detector->Visualize(frame, faces, average_time, detection_time);
 
         //video.write(frame);
-        cv::imshow("FaceTracker", frame);
+        if(_display) {
+            cv::imshow("FaceTracker", frame);
 
-        // Stop when Esc key is pressed
-        if(cv::waitKey(1) == 27){
-            uLock.lock();
-            _is_running = false;
-            uLock.unlock();
-            //video.release()
-            break;
+            // Stop when Esc key is pressed
+            if(cv::waitKey(1) == 27){
+                uLock.lock();
+                _is_running = false;
+                uLock.unlock();
+                //video.release()
+                break;
+            }
         }
     }
 }

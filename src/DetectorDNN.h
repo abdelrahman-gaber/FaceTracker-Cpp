@@ -24,7 +24,7 @@ public:
 private:
     void PostProcess(cv::Mat&);
 
-    float score_threshold = 0.8;
+    float score_threshold = 0.85;
     float nms_threshold = 0.5;
     int top_k = 500;
     cv::Size _model_input_size = cv::Size(320, 240);

@@ -25,6 +25,7 @@ struct MessageData {
     cv::Mat preprocessed_img;
     cv::Mat faces;
 
+    unsigned int frame_number;
     float capture_time;
     float preprocess_time;
     float detection_time;
@@ -38,7 +39,7 @@ class Processor
 public:
     Processor();
     ~Processor();
-    void SetParams(cv::String, int, bool);
+    void SetParams(cv::String, int, bool, bool);
     void Run();
     
 private:
@@ -47,8 +48,10 @@ private:
 
     int _cam_id;
     bool _use_dnn;
+    bool _display;
     bool _is_running;
     cv::String _model_path;
+    unsigned int _frame_number;
     
     cv::VideoCapture _capture;
     std::shared_ptr<Detector> _detector;
