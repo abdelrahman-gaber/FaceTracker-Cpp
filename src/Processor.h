@@ -39,7 +39,7 @@ class Processor
 public:
     Processor();
     ~Processor();
-    void SetParams(cv::String, int, bool, bool);
+    void SetParams(cv::String, int, int, bool, bool);
     void Run();
     
 private:
@@ -49,6 +49,7 @@ private:
     int _cam_id;
     bool _use_dnn;
     bool _display;
+    int _verbosity;
     bool _is_running;
     cv::String _model_path;
     unsigned int _frame_number;

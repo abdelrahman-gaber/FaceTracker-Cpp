@@ -13,11 +13,12 @@ Processor::~Processor() {
 }
 
 
-void Processor::SetParams(cv::String model_pth, int camera_id, bool use_dnn, bool display){
+void Processor::SetParams(cv::String model_pth, int camera_id, int verbosity, bool use_dnn, bool display){
     _model_path = model_pth;
     _cam_id = camera_id;
     _use_dnn = use_dnn;
     _display = display;
+    _verbosity = verbosity;
 }
 
 
@@ -147,6 +148,7 @@ void Processor::Display() {
     float detection_time;
     float display_time;
     float average_time;
+    MovingAverage ma;
     std::cout << std::setprecision(2) << std::fixed;
 
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
@@ -170,13 +172,21 @@ void Processor::Display() {
         timer.Tic();
  
         if(message.frame_number<2) {average_time = 1;} // first frame takes longer than others
-        else if(message.frame_number==2) {average_time = display_time;}
-        else {average_time = (average_time+display_time)/2.0;}
+        else {
+            average_time = ma.GetNext(display_time); 
+        }
 
-        std::cout << "Frame " << message.frame_number << " : Camera capture: " << message.capture_time*1000 
+        if(_verbosity >= 2) {
+            std::cout << "Frame " << message.frame_number << " : Camera capture: " << message.capture_time*1000 
                   << " ms .. Preprocessing: " << message.preprocess_time*1000 << " ms .. Detection: " 
                   << message.detection_time*1000 << " ms .. Display: " << display_time*1000 
                   << " ms ... Avg display time: " << average_time*1000 << " ms \n";
+        }
+
+        if(_verbosity >= 1 and message.frame_number%100==0) {
+            std::cout << "Frame " << message.frame_number << " : Avg display time: " << average_time*1000 
+            << " ms --> " << 1.0/average_time << " fps \n";
+        }
 
         // Note: this function will modify the original image
         _detector->Visualize(frame, faces, average_time, detection_time);
