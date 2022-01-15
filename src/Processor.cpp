@@ -78,7 +78,7 @@ void Processor::Capture() {
     uLock.unlock();
 
     //Read the video stream
-    _capture.open(_cam_id);
+    _capture.open(_cam_id, cv::CAP_V4L2);
     if (! _capture.isOpened()) {
         std::cout << "Error opening video capture \n";
         uLock.lock();
@@ -87,10 +87,14 @@ void Processor::Capture() {
         return;
     }
 
-    //_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    _capture.set(cv::CAP_PROP_BUFFERSIZE, 2); // to get the latest frame
     _capture.set(cv::CAP_PROP_FRAME_WIDTH, 640);
     _capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
     _capture.set(cv::CAP_PROP_FPS, 30);
+    //_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    int fourcc = _capture.get(cv::CAP_PROP_FOURCC);
+    std::string fourcc_str = cv::format("%c%c%c%c", fourcc & 255, (fourcc >> 8) & 255, (fourcc >> 16) & 255, (fourcc >> 24) & 255);
+    std::cout << "Input video format: " << fourcc_str << "\n";
 
     // set max frame size to 2 so you get the latest frames from the camera whatever the speed of the Processor
     _frame_buffer.SetMaxQueueSize(MAX_SIZE_FRAME_BUFFER);
@@ -189,7 +193,7 @@ void Processor::Display() {
         }
 
         // Note: this function will modify the original image
-        _detector->Visualize(frame, faces, average_time, detection_time);
+        _detector->Visualize(frame, faces, average_time);
 
         //video.write(frame);
         if(_display) {

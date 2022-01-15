@@ -19,7 +19,7 @@ public:
     void LoadModel(cv::String&) override;
     cv::Mat Detect(const cv::Mat&) override;
     cv::Mat PreProcess(const cv::Mat&) override;
-    void Visualize(cv::Mat&, cv::Mat&, float, float) override;
+    void Visualize(cv::Mat&, cv::Mat&, float) override;
 
 private:
     void PostProcess(cv::Mat&);

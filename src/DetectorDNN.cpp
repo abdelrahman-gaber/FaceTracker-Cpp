@@ -41,7 +41,7 @@ cv::Mat DetectorDNN::Detect(const cv::Mat& frame) {
     return faces;
 }
 
-void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, float display_latency, float detection_latency)
+void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, float display_latency)
 {
     int thickness = 2;
     for (int i = 0; i < faces.rows; i++)
@@ -56,8 +56,6 @@ void DetectorDNN::Visualize(cv::Mat& img, cv::Mat& faces, float display_latency,
         cv::circle(img, cv::Point2i(int(faces.at<float>(i, 10)), int(faces.at<float>(i, 11))), 2, cv::Scalar(255, 0, 255), thickness);
         cv::circle(img, cv::Point2i(int(faces.at<float>(i, 12)), int(faces.at<float>(i, 13))), 2, cv::Scalar(0, 255, 255), thickness);
     }
-    cv::String dispaly_fps_string = cv::format("Display FPS: %3.2f", 1.0/display_latency);
-    cv::String detection_fps_string = cv::format("Detection FPS: %3.2f", 1.0/detection_latency);
+    cv::String dispaly_fps_string = cv::format("Average FPS: %3.2f", 1.0/display_latency);
     cv::putText(img, dispaly_fps_string, cv::Point(15,35), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,0,0), 2, false);
-    cv::putText(img, detection_fps_string, cv::Point(15,75), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,0,0), 2, false);
 }
