@@ -23,6 +23,10 @@ MovingAverage::MovingAverage(){};
 
 MovingAverage::~MovingAverage(){};
 
+void MovingAverage::SetMaxQueueSize(int size){
+    _max_size = size;
+}
+
 float MovingAverage::GetNext(float new_value){
     UpdateQueue(new_value);
     return GetAverage();

@@ -34,6 +34,7 @@ struct MessageData {
     bool capture_success = false;
 };
 
+
 class Processor
 {
 public:
@@ -61,7 +62,7 @@ private:
     std::vector<std::future<void>> _futures;
     std::mutex _mtx;
 
-    const int MAX_SIZE_FRAME_BUFFER = 2;
+    const int MAX_SIZE_FRAME_BUFFER = 3;
 };
 
 #endif

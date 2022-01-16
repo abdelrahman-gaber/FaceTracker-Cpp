@@ -15,10 +15,16 @@ void DetectorDNN::LoadModel(cv::String& model_pth) {
 
 cv::Mat DetectorDNN::PreProcess(const cv::Mat& frame) {
     cv::Mat frame_out;
-    // TODO: make sure resize will keep aspect ratio, in the 4:3 input frame, this is done correctly. 
-    cv::resize(frame, frame_out, _model_input_size, 0, 0, cv::INTER_LINEAR);
     _resize_factor.first  = float(_model_input_size.width) / float(frame.cols);
     _resize_factor.second = float(_model_input_size.height) / float(frame.rows);
+    
+    if(_resize_factor.first == 1 && _resize_factor.second == 1) {
+        frame_out = frame.clone();
+    }
+    else {
+        // TODO: make sure resize will keep aspect ratio. In the 4:3 input frame, this is done correctly. 
+        cv::resize(frame, frame_out, _model_input_size, 0, 0, cv::INTER_CUBIC);
+    }
     return frame_out;
 }
 

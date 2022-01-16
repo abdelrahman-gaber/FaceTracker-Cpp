@@ -10,7 +10,7 @@ int main(int argc, const char** argv)
                              "{camera          c | 0 | Camera device number.}"
                              "{use_dnn         n | 1 | Flag to use DNN models, set 1/true for true value or 0/false for false}"
                              "{display         d | 1 | Flag to display the output frames with bounding boxes (1/true or 0/false)}"
-                             "{verbosity       v | 2 | verbosity level (0 - 2): higher value prints more information while running}");
+                             "{verbosity       v | 1 | verbosity level (0 - 2): higher value prints more information while running}");
 
     parser.about( "\nThis program detect faces in a video stream.\n");
     parser.printMessage();

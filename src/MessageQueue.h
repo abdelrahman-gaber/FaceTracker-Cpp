@@ -55,7 +55,7 @@ public:
     }
 
 private:
-    int _max_size=100;
+    int _max_size=10;
     int _max_wait_seconds = 5;
     std::deque<T> _queue;
     std::condition_variable _condition;

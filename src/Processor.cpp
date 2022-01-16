@@ -61,8 +61,8 @@ void Processor::Run() {
 
         timer.Tic();
         cv::Mat faces = _detector->Detect(preprocessed_frame); 
-
         data_msg.detection_time = timer.Toc();
+
         data_msg.faces = std::move(faces);
         _display_msg_queue.Send( std::move(data_msg) );
         //std::cout << "display_msg_queue size:" << _display_msg_queue.GetQueueSize() << "\n";
@@ -151,8 +151,8 @@ void Processor::Display() {
     Timer timer;
     float detection_time;
     float display_time;
-    float average_time;
-    MovingAverage ma;
+    AverageLatencies avg_times;
+
     std::cout << std::setprecision(2) << std::fixed;
 
     //cv::VideoWriter video("capture_record.mp4", cv::VideoWriter::fourcc('a','v','c','1'), 24, cv::Size(640, 480));
@@ -175,25 +175,26 @@ void Processor::Display() {
         display_time = timer.Toc();
         timer.Tic();
  
-        if(message.frame_number<2) {average_time = 1;} // first frame takes longer than others
-        else {
-            average_time = ma.GetNext(display_time); 
-        }
+        avg_times.Update(message.capture_time, message.preprocess_time, message.detection_time, display_time);
 
         if(_verbosity >= 2) {
-            std::cout << "Frame " << message.frame_number << " : Camera capture: " << message.capture_time*1000 
+            std::cout << "Frame " << message.frame_number << " : Capture: " << message.capture_time*1000 
                   << " ms .. Preprocessing: " << message.preprocess_time*1000 << " ms .. Detection: " 
                   << message.detection_time*1000 << " ms .. Display: " << display_time*1000 
-                  << " ms ... Avg display time: " << average_time*1000 << " ms \n";
+                  << " ms ... Avg display time: " << avg_times.avg_overall_time*1000 << " ms \n";
         }
 
+        // each 100 frames
         if(_verbosity >= 1 and message.frame_number%100==0) {
-            std::cout << "Frame " << message.frame_number << " : Avg display time: " << average_time*1000 
-            << " ms --> " << 1.0/average_time << " fps \n";
+            std::cout << "Frame " << message.frame_number << " : Avg capture time: " << avg_times.avg_capture_time*1000
+            << " ms .. Avg preprocess time: " << avg_times.avg_preprocess_time*1000 
+            << " ms .. Avg detection time: " << avg_times.avg_detection_time*1000
+            << " ms .. Avg overall time: " << avg_times.avg_overall_time*1000 
+            << " ms --> " << 1.0/avg_times.avg_overall_time << " fps \n";
         }
 
         // Note: this function will modify the original image
-        _detector->Visualize(frame, faces, average_time);
+        _detector->Visualize(frame, faces, avg_times.avg_overall_time);
 
         //video.write(frame);
         if(_display) {
